@@ -120,14 +120,17 @@ class ChatManager {
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.slice(6));
-                            if (data.type === 'chunk') {
-                                botMessageDiv.textContent += data.content;
-                            } else if (data.type === 'end') {
-                                // 对话完成，更新轮数
-                                this.conversationRounds++;
-                            } else if (data.type === 'error') {
-                                botMessageDiv.textContent = '抱歉，处理您的请求时出现了错误。';
-                            }
+                                                            if (data.type === 'chunk') {
+                                    botMessageDiv.textContent += data.content;
+                                } else if (data.type === 'mindmap_node') {
+                                    // 显示思维导图节点
+                                    this.showMindMapNode(data.node);
+                                } else if (data.type === 'end') {
+                                    // 对话完成，更新轮数
+                                    this.conversationRounds++;
+                                } else if (data.type === 'error') {
+                                    botMessageDiv.textContent = '抱歉，处理您的请求时出现了错误。';
+                                }
                         } catch (e) {
                             console.error('解析响应数据失败:', e);
                         }
@@ -204,6 +207,34 @@ class ChatManager {
         }
     }
 
+    // 显示思维导图节点
+    showMindMapNode(nodeData) {
+        const container = document.getElementById('mindmapContainer');
+        const titleElement = document.getElementById('nodeTitle');
+        const contentElement = document.getElementById('nodeContent');
+        const typeElement = document.getElementById('nodeType');
+        
+        // 设置节点内容
+        titleElement.textContent = nodeData.title;
+        contentElement.textContent = nodeData.content;
+        typeElement.textContent = nodeData.node_type;
+        
+        // 显示容器
+        container.style.display = 'block';
+        
+        // 添加点击事件，点击后隐藏节点
+        const nodeElement = document.getElementById('mindmapNode');
+        const hideNode = () => {
+            container.style.display = 'none';
+            nodeElement.removeEventListener('click', hideNode);
+        };
+        
+        nodeElement.addEventListener('click', hideNode);
+        
+        // 5秒后自动隐藏
+        setTimeout(hideNode, 5000);
+    }
+    
     // 处理键盘事件
     handleKeyPress(event) {
         if (event.key === 'Enter') {

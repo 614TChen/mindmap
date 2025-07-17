@@ -7,14 +7,12 @@ import uvicorn
 import os
 import json
 import uuid
+import asyncio
 from typing import AsyncGenerator
-from llama_index.llms.deepseek import DeepSeek
-from llama_index.core.llms import ChatMessage
 from dotenv import load_dotenv
 from message_manager import MessageManager
-
-os.environ["DEEPSEEK_API_KEY"] = "sk-5f8e86349f4d4f13a616426ef9328074"
-
+from agents.starter import run_starter_agent
+from nodes import MindMapNode, MindMapManager
 
 # 加载环境变量
 load_dotenv()
@@ -36,18 +34,18 @@ templates = Jinja2Templates(directory="templates")
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 初始化DeepSeek LLM
-llm = DeepSeek(model="deepseek-chat", api_key="sk-5f8e86349f4d4f13a616426ef9328074")
-
 # 初始化消息管理器
 message_manager = MessageManager(max_rounds=10)
+
+# 初始化思维导图管理器
+mindmap_manager = MindMapManager()
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/chat")
 async def chat_endpoint(request: Request):
-    """聊天API端点，支持流式响应和对话历史管理"""
+    """聊天API端点，使用starter_agent处理"""
     try:
         data = await request.json()
         user_message = data.get("message", "")
@@ -59,12 +57,9 @@ async def chat_endpoint(request: Request):
         # 添加用户消息到历史
         message_manager.add_message(session_id, "user", user_message)
         
-        # 获取完整上下文消息
-        context_messages = message_manager.get_context_messages(session_id)
-        
         # 返回流式响应
         return StreamingResponse(
-            stream_chat_response(context_messages, session_id),
+            stream_starter_agent_response(user_message, session_id),
             media_type="text/plain"
         )
         
@@ -96,29 +91,62 @@ async def get_chat_info(session_id: str):
     except Exception as e:
         return {"error": f"获取会话信息时出错: {str(e)}"}
 
-async def stream_chat_response(messages, session_id: str) -> AsyncGenerator[str, None]:
-    """聊天响应生成器"""
+async def stream_starter_agent_response(user_message: str, session_id: str) -> AsyncGenerator[str, None]:
+    """使用starter_agent的流式响应生成器"""
     try:
-        # 使用stream_chat方法，参考example4
-        response_stream = llm.stream_chat(messages)
+        # 在线程池中运行starter_agent（因为它是同步的）
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, run_starter_agent, user_message)
         
-        full_response = ""
-        for chunk in response_stream:
-            if chunk.delta:
-                full_response += chunk.delta
-                # 发送每个响应块
-                yield f"data: {json.dumps({'content': chunk.delta, 'type': 'chunk'})}\n\n"
+        if result is None:
+            yield f"data: {json.dumps({'error': 'Agent处理失败', 'type': 'error'})}\n\n"
+            return
+        
+        # 构建响应文本
+        response_text = result.reply
+        
+        # 模拟流式输出（逐字符发送）
+        for char in response_text:
+            yield f"data: {json.dumps({'content': char, 'type': 'chunk'})}\n\n"
+            await asyncio.sleep(0.01)  # 模拟打字效果
         
         # 添加助手回复到历史
-        if full_response:
-            message_manager.add_message(session_id, "assistant", full_response)
+        message_manager.add_message(session_id, "assistant", response_text)
+        
+        # 如果启动思维导图，创建节点并发送节点信息
+        if result.start_mindmap:
+            # 创建思维导图节点
+            mindmap_node = MindMapNode(
+                title=result.node_description,
+                content=result.idea_description,
+                node_type="idea",
+                metadata={
+                    "session_id": session_id,
+                    "created_from_chat": True,
+                    "user_message": user_message
+                }
+            )
+            
+            # 添加到思维导图管理器
+            mindmap_manager.add_node(mindmap_node)
+            
+            # 发送思维导图节点信息
+            node_data = {
+                "node_id": mindmap_node.node_id,
+                "title": mindmap_node.title,
+                "content": mindmap_node.content,
+                "node_type": mindmap_node.node_type,
+                "position": mindmap_node.position
+            }
+            
+            yield f"data: {json.dumps({'type': 'mindmap_node', 'node': node_data})}\n\n"
         
         # 发送完成信号
         yield f"data: {json.dumps({'content': '', 'type': 'end'})}\n\n"
         
     except Exception as e:
         # 发送错误信息
-        print(str(e))
+        print(f"Starter agent error: {str(e)}")
         yield f"data: {json.dumps({'error': str(e), 'type': 'error'})}\n\n"
 
 if __name__ == "__main__":

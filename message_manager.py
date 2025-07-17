@@ -1,6 +1,11 @@
 from typing import List, Dict
-from llama_index.core.llms import ChatMessage
 import time
+
+# 简单的消息类，替代llama_index的ChatMessage
+class ChatMessage:
+    def __init__(self, role: str, content: str):
+        self.role = role
+        self.content = content
 
 class MessageManager:
     def __init__(
@@ -52,24 +57,16 @@ class MessageManager:
     
     def get_context_messages(self, session_id: str) -> List[ChatMessage]:
         """
-        获取会话的上下文消息（包含系统消息）
+        获取会话的上下文消息
         
         Args:
             session_id: 会话ID
             
         Returns:
-            包含系统消息的完整上下文
+            对话历史
         """
         conversation = self.get_or_create_conversation(session_id)
-        
-        # 系统消息
-        system_message = ChatMessage(
-            role="system",
-            content=self.system_prompt
-        )
-        
-        # 返回系统消息 + 对话历史
-        return [system_message] + conversation
+        return conversation
     
     def _limit_conversation_rounds(self, session_id: str) -> None:
         """
