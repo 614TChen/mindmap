@@ -3,13 +3,18 @@ from llama_index.core.llms import ChatMessage
 import time
 
 class MessageManager:
-    def __init__(self, max_rounds: int = 10):
+    def __init__(
+        self, 
+        system_prompt: str = "你是Eure，善于启发用户的灵感。",
+        max_rounds: int = 10
+    ):
         """
         初始化消息管理器
         
         Args:
             max_rounds: 最大对话轮数，默认10轮
         """
+        self.system_prompt = system_prompt
         self.max_rounds = max_rounds
         self.conversations: Dict[str, List[ChatMessage]] = {}
         self.conversation_timestamps: Dict[str, float] = {}
@@ -60,7 +65,7 @@ class MessageManager:
         # 系统消息
         system_message = ChatMessage(
             role="system",
-            content="你是Eure，善于启发用户的灵感。"
+            content=self.system_prompt
         )
         
         # 返回系统消息 + 对话历史

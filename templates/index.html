@@ -161,7 +161,7 @@
     <div class="chat-widget" id="chatWidget">
         <div class="chat-header">
             <span>💬 Room</span>
-            <button class="close-btn" onclick="toggleChat()">−</button>
+            <button class="close-btn">−</button>
         </div>
         <div class="chat-messages" id="chatMessages">
             <div class="message bot">
@@ -170,181 +170,17 @@
         </div>
 
         <div class="chat-actions">
-            <button onclick="clearChat()">clear</button>
-            <button onclick="showChatInfo()">history</button>
+            <button>clear</button>
+            <button>history</button>
         </div>
         <div class="chat-input">
             <div class="chat-input-container">
-                <input type="text" id="messageInput" placeholder="输入消息..." onkeypress="handleKeyPress(event)">
-                <button onclick="sendMessage()">send</button>
+                <input type="text" id="messageInput" placeholder="输入消息...">
+                <button>send</button>
             </div>
         </div>
     </div>
-    <script>
-        // 会话管理
-        let currentSessionId = null;
-        let conversationRounds = 0;
-        
-        // 生成会话ID
-        function generateSessionId() {
-            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
-        
-        // 初始化会话
-        function initSession() {
-            if (!currentSessionId) {
-                currentSessionId = generateSessionId();
-                conversationRounds = 0;
-            }
-        }
-        
-
-        
-        function toggleChat() {
-            const widget = document.getElementById('chatWidget');
-            const closeBtn = document.querySelector('.close-btn');
-            if (widget.classList.contains('minimized')) {
-                widget.classList.remove('minimized');
-                closeBtn.textContent = '−';
-            } else {
-                widget.classList.add('minimized');
-                closeBtn.textContent = '+';
-            }
-        }
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-            if (!message) return;
-            
-            // 初始化会话
-            initSession();
-            
-            addMessage(message, 'user');
-            input.value = '';
-            
-            // 显示加载状态
-            const loadingDiv = addMessage('正在思考...', 'bot');
-            loadingDiv.classList.add('loading');
-            
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        message: message,
-                        session_id: currentSessionId
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('网络请求失败');
-                }
-                
-                loadingDiv.remove();
-                const botMessageDiv = addMessage('', 'bot');
-                
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    buffer += decoder.decode(value, { stream: true });
-                    let lines = buffer.split('\n');
-                    buffer = lines.pop(); // 可能有半截数据
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                if (data.type === 'chunk') {
-                                    botMessageDiv.textContent += data.content;
-                                } else if (data.type === 'end') {
-                                    // 对话完成，更新轮数
-                                    conversationRounds++;
-                                } else if (data.type === 'error') {
-                                    botMessageDiv.textContent = '抱歉，处理您的请求时出现了错误。';
-                                }
-                            } catch (e) {
-                                console.error('解析响应数据失败:', e);
-                            }
-                        }
-                    }
-                }
-                
-            } catch (error) {
-                console.error('发送消息失败:', error);
-                loadingDiv.remove();
-                addMessage('抱歉，连接服务器时出现了问题。', 'bot');
-            }
-        }
-        function addMessage(text, sender) {
-            const messagesContainer = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-            messageDiv.textContent = text;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            return messageDiv; // 返回创建的元素，以便后续操作
-        }
-        async function clearChat() {
-            if (!currentSessionId) return;
-            
-            try {
-                const response = await fetch('/chat/clear', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ session_id: currentSessionId })
-                });
-                
-                if (response.ok) {
-                    // 清空前端显示
-                    const messagesContainer = document.getElementById('chatMessages');
-                    messagesContainer.innerHTML = '<div class="message bot">你好！我是Eure，有什么可以帮助你的吗？</div>';
-                    
-                    // 重置轮数
-                    conversationRounds = 0;
-                    
-                    alert('对话历史已清空');
-                }
-            } catch (error) {
-                console.error('清空对话失败:', error);
-                alert('清空对话失败');
-            }
-        }
-        
-        async function showChatInfo() {
-            if (!currentSessionId) {
-                alert('当前没有活跃的会话');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/chat/info/${currentSessionId}`);
-                const info = await response.json();
-                
-                if (response.ok) {
-                    alert(`会话信息:\n会话ID: ${info.session_id}\n当前轮数: ${info.current_rounds}/${info.max_rounds}\n总消息数: ${info.total_messages}`);
-                } else {
-                    alert('获取会话信息失败');
-                }
-            } catch (error) {
-                console.error('获取会话信息失败:', error);
-                alert('获取会话信息失败');
-            }
-        }
-        
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        }
-    </script>
+    <!-- 引入聊天功能JavaScript文件 -->
+    <script src="/static/js/chat.js"></script>
 </body>
 </html> 

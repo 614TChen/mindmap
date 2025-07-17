@@ -13,6 +13,9 @@ from llama_index.core.llms import ChatMessage
 from dotenv import load_dotenv
 from message_manager import MessageManager
 
+os.environ["DEEPSEEK_API_KEY"] = "sk-5f8e86349f4d4f13a616426ef9328074"
+
+
 # 加载环境变量
 load_dotenv()
 
@@ -29,6 +32,9 @@ app.add_middleware(
 
 # 挂载模板目录
 templates = Jinja2Templates(directory="templates")
+
+# 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 初始化DeepSeek LLM
 llm = DeepSeek(model="deepseek-chat", api_key="sk-5f8e86349f4d4f13a616426ef9328074")
