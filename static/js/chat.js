@@ -36,10 +36,10 @@ class ChatManager {
             infoButton.onclick = () => this.showChatInfo();
         }
 
-        // 绑定关闭按钮
-        const closeButton = document.querySelector('.close-btn');
-        if (closeButton) {
-            closeButton.onclick = () => this.toggleChat();
+        // 绑定聊天面板关闭按钮
+        const chatCloseButton = document.querySelector('.chat-widget .close-btn');
+        if (chatCloseButton) {
+            chatCloseButton.onclick = () => this.toggleChat();
         }
     }
 
@@ -222,17 +222,45 @@ class ChatManager {
         // 显示容器
         container.style.display = 'block';
         
-        // 添加点击事件，点击后隐藏节点
+        // 添加思维导图节点关闭按钮事件
+        const closeBtn = document.getElementById('nodeCloseBtn');
         const nodeElement = document.getElementById('mindmapNode');
+        
+        // 移除之前的事件监听器（如果有的话）
+        const oldHideNode = nodeElement._hideNodeFunction;
+        if (oldHideNode) {
+            closeBtn.removeEventListener('click', oldHideNode);
+            clearTimeout(nodeElement._hideTimeout);
+        }
+        
         const hideNode = () => {
             container.style.display = 'none';
-            nodeElement.removeEventListener('click', hideNode);
+            closeBtn.removeEventListener('click', hideNode);
+            nodeElement._hideNodeFunction = null;
+            nodeElement._hideTimeout = null;
         };
         
-        nodeElement.addEventListener('click', hideNode);
+        // 保存引用以便后续移除
+        nodeElement._hideNodeFunction = hideNode;
         
-        // 5秒后自动隐藏
-        setTimeout(hideNode, 5000);
+        // 只有关闭按钮可以隐藏节点
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止事件冒泡
+            e.preventDefault(); // 阻止默认行为
+            hideNode();
+        });
+        
+        // 防止节点点击事件冒泡到聊天面板
+        nodeElement.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // 30秒后自动隐藏（增加显示时间）
+        // 如果你想完全禁用自动隐藏，可以注释掉下面这行
+        nodeElement._hideTimeout = setTimeout(hideNode, 30000);
+        
+        // 或者设置为更长时间，比如5分钟：
+        // nodeElement._hideTimeout = setTimeout(hideNode, 300000);
     }
     
     // 处理键盘事件

@@ -142,15 +142,12 @@
             text-align: center;
             min-width: 200px;
             max-width: 300px;
-            cursor: pointer;
             transition: all 0.3s ease;
             animation: nodeAppear 0.5s ease-out;
+            position: relative;
         }
         
-        .mindmap-node:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-        }
+
         
         .mindmap-node .node-title {
             font-weight: bold;
@@ -170,6 +167,28 @@
             color: #999;
             margin-top: 8px;
             text-transform: uppercase;
+        }
+        
+        .mindmap-node .node-close-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .mindmap-node .node-close-btn:hover {
+            background: #cc0000;
         }
         
         @keyframes nodeAppear {
@@ -221,6 +240,7 @@
     <!-- 思维导图容器 -->
     <div class="mindmap-container" id="mindmapContainer">
         <div class="mindmap-node" id="mindmapNode">
+            <button class="node-close-btn" id="nodeCloseBtn">×</button>
             <div class="node-title" id="nodeTitle"></div>
             <div class="node-content" id="nodeContent"></div>
             <div class="node-type" id="nodeType"></div>
