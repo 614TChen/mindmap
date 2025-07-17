@@ -1,0 +1,3 @@
+fastapi==00.110.2uvicorn==0290
+llama-index==00.100lama-index-llms-deepseek==00.1.0
+python-dotenv==1.0.0 
