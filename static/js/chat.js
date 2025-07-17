@@ -209,6 +209,8 @@ class ChatManager {
 
     // 显示思维导图节点
     showMindMapNode(nodeData) {
+        console.log('显示思维导图节点:', nodeData);
+        
         const container = document.getElementById('mindmapContainer');
         const titleElement = document.getElementById('nodeTitle');
         const contentElement = document.getElementById('nodeContent');
@@ -221,6 +223,7 @@ class ChatManager {
         
         // 显示容器
         container.style.display = 'block';
+        console.log('思维导图容器已显示');
         
         // 添加思维导图节点关闭按钮事件
         const closeBtn = document.getElementById('nodeCloseBtn');
@@ -229,11 +232,13 @@ class ChatManager {
         // 移除之前的事件监听器（如果有的话）
         const oldHideNode = nodeElement._hideNodeFunction;
         if (oldHideNode) {
+            console.log('清除之前的隐藏函数和定时器');
             closeBtn.removeEventListener('click', oldHideNode);
             clearTimeout(nodeElement._hideTimeout);
         }
         
         const hideNode = () => {
+            console.log('手动隐藏思维导图节点');
             container.style.display = 'none';
             closeBtn.removeEventListener('click', hideNode);
             nodeElement._hideNodeFunction = null;
@@ -247,6 +252,7 @@ class ChatManager {
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation(); // 阻止事件冒泡
             e.preventDefault(); // 阻止默认行为
+            console.log('用户点击关闭按钮');
             hideNode();
         });
         
@@ -255,11 +261,17 @@ class ChatManager {
             e.stopPropagation();
         });
         
-        // 30秒后自动隐藏（增加显示时间）
-        // 如果你想完全禁用自动隐藏，可以注释掉下面这行
-        nodeElement._hideTimeout = setTimeout(hideNode, 30000);
+        // 完全禁用自动隐藏 - 节点将一直显示直到用户手动关闭
+        console.log('自动隐藏已禁用，节点将永久显示');
         
-        // 或者设置为更长时间，比如5分钟：
+        // 确保没有定时器在运行
+        if (nodeElement._hideTimeout) {
+            clearTimeout(nodeElement._hideTimeout);
+            nodeElement._hideTimeout = null;
+            console.log('清除任何可能存在的定时器');
+        }
+        
+        // 如果需要自动隐藏，可以设置更长时间，比如5分钟：
         // nodeElement._hideTimeout = setTimeout(hideNode, 300000);
     }
     

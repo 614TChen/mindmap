@@ -150,4 +150,4 @@ async def stream_starter_agent_response(user_message: str, session_id: str) -> A
         yield f"data: {json.dumps({'error': str(e), 'type': 'error'})}\n\n"
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True) 
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True) 
