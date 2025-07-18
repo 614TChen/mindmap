@@ -240,6 +240,44 @@
             box-shadow: 0 2px 8px rgba(25, 118, 210, 0.5);
         }
         
+        /* 切割线样式 */
+        .cut-line {
+            position: absolute;
+            background: linear-gradient(90deg, #ff6b35, #ff4757, #ff6b35);
+            height: 4px;
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.8);
+            pointer-events: none;
+            z-index: 200;
+            animation: cutGlow 0.3s ease-out;
+        }
+        
+        @keyframes cutGlow {
+            0% { box-shadow: 0 0 5px rgba(255, 107, 53, 0.4); }
+            50% { box-shadow: 0 0 20px rgba(255, 107, 53, 1); }
+            100% { box-shadow: 0 0 10px rgba(255, 107, 53, 0.8); }
+        }
+        
+        /* 被切割的连接线效果 */
+        .connection-line.cut {
+            animation: cutEffect 0.5s ease-out;
+        }
+        
+        @keyframes cutEffect {
+            0% { 
+                opacity: 1;
+                transform: scaleX(1);
+            }
+            50% { 
+                opacity: 0.5;
+                transform: scaleX(0.8);
+            }
+            100% { 
+                opacity: 0;
+                transform: scaleX(0);
+            }
+        }
+        
         /* 状态提示 */
         .status-bar {
             position: fixed;
@@ -402,6 +440,7 @@
         <button id="addNodeBtn">➕ 添加节点</button>
         <button id="connectBtn">🔗 连线模式</button>
         <button id="selectBtn">👆 选择模式</button>
+        <button id="cutBtn">⚔️ 切割模式</button>
         <button id="clearBtn">🗑️ 清空</button>
         <button id="exportBtn">💾 导出</button>
     </div>

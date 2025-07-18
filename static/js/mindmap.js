@@ -6,7 +6,7 @@ class MindMapManager {
         this.selectedNode = null; // 当前选中的节点
         this.connectingNode = null; // 正在连线的起始节点
         this.tempConnection = null; // 临时连接线
-        this.mode = 'select'; // 当前模式：select, connect
+        this.mode = 'select'; // 当前模式：select, connect, cut
         this.draggingNode = null; // 正在拖拽的节点
         this.dragOffset = { x: 0, y: 0 };
         
@@ -15,6 +15,11 @@ class MindMapManager {
         this.currentMouseY = 0;
         this.lastMouseX = 0;
         this.lastMouseY = 0;
+        
+        // 切割模式相关
+        this.isCutting = false; // 是否正在切割
+        this.cutPath = []; // 切割路径点
+        this.cutLine = null; // 切割线元素
         
         this.canvas = document.getElementById('mindmapCanvas');
         this.statusBar = document.getElementById('statusBar');
@@ -32,6 +37,7 @@ class MindMapManager {
         document.getElementById('addNodeBtn').addEventListener('click', () => this.showAddNodeModal());
         document.getElementById('connectBtn').addEventListener('click', () => this.setMode('connect'));
         document.getElementById('selectBtn').addEventListener('click', () => this.setMode('select'));
+        document.getElementById('cutBtn').addEventListener('click', () => this.setMode('cut'));
         document.getElementById('clearBtn').addEventListener('click', () => this.clearAll());
         document.getElementById('exportBtn').addEventListener('click', () => this.exportMindMap());
         
@@ -41,6 +47,7 @@ class MindMapManager {
         
         // 画布事件
         this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
+        this.canvas.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.handleCanvasMouseUp(e));
         
@@ -146,12 +153,15 @@ class MindMapManager {
         // 更新按钮状态
         document.getElementById('connectBtn').classList.toggle('active', mode === 'connect');
         document.getElementById('selectBtn').classList.toggle('active', mode === 'select');
+        document.getElementById('cutBtn').classList.toggle('active', mode === 'cut');
         
         // 清除选择状态
         this.clearSelection();
         
         if (mode === 'connect') {
             this.updateStatus('连线模式 - 点击一个节点开始连线，再点击另一个节点完成连线');
+        } else if (mode === 'cut') {
+            this.updateStatus('切割模式 - 按住鼠标左键并移动来切断连线');
         } else {
             this.updateStatus('选择模式 - 可以拖拽节点，双击编辑');
         }
@@ -285,6 +295,26 @@ class MindMapManager {
         });
     }
     
+    // 处理画布鼠标按下
+    handleCanvasMouseDown(e) {
+        if (this.mode === 'cut' && e.button === 0) { // 切割模式下的左键
+            this.startCutting(e);
+        }
+    }
+    
+    // 开始切割
+    startCutting(e) {
+        this.isCutting = true;
+        this.cutPath = [{ x: e.clientX, y: e.clientY }];
+        
+        // 创建切割线
+        this.cutLine = document.createElement('div');
+        this.cutLine.className = 'cut-line';
+        this.canvas.appendChild(this.cutLine);
+        
+        this.updateStatus('切割中... 移动鼠标切断连线');
+    }
+    
     // 处理节点拖拽开始
     handleNodeMouseDown(e, node) {
         if (this.mode === 'select' && e.button === 0) { // 左键
@@ -329,6 +359,11 @@ class MindMapManager {
                 this.updateConnectionsForNode(this.draggingNode.id);
             }
         }
+        
+        // 处理切割模式
+        if (this.isCutting) {
+            this.updateCutting(e);
+        }
     }
     
     // 处理画布鼠标释放
@@ -340,6 +375,11 @@ class MindMapManager {
                 this.applyInertiaEffect(nodeElement, this.draggingNode);
             }
             this.draggingNode = null;
+        }
+        
+        // 处理切割结束
+        if (this.isCutting) {
+            this.endCutting();
         }
     }
     
@@ -490,6 +530,120 @@ class MindMapManager {
     // 更新状态栏
     updateStatus(message) {
         this.statusBar.textContent = message;
+    }
+    
+    // 更新切割
+    updateCutting(e) {
+        // 添加新的切割点
+        this.cutPath.push({ x: e.clientX, y: e.clientY });
+        
+        // 更新切割线显示
+        this.updateCutLine();
+        
+        // 检查是否切断了任何连接线
+        this.checkCutConnections();
+    }
+    
+    // 更新切割线显示
+    updateCutLine() {
+        if (this.cutPath.length < 2) return;
+        
+        const start = this.cutPath[0];
+        const end = this.cutPath[this.cutPath.length - 1];
+        
+        const length = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+        const angle = Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI;
+        
+        this.cutLine.style.width = length + 'px';
+        this.cutLine.style.left = start.x + 'px';
+        this.cutLine.style.top = start.y + 'px';
+        this.cutLine.style.transform = `rotate3d(0, 0, 1, ${angle}deg)`;
+    }
+    
+    // 检查切割连接线
+    checkCutConnections() {
+        if (this.cutPath.length < 2) return;
+        
+        this.connections.forEach((connection, index) => {
+            if (this.isConnectionCut(connection)) {
+                this.cutConnection(connection, index);
+            }
+        });
+    }
+    
+    // 判断连接线是否被切割
+    isConnectionCut(connection) {
+        const fromElement = document.querySelector(`[data-node-id="${connection.from}"]`);
+        const toElement = document.querySelector(`[data-node-id="${connection.to}"]`);
+        
+        if (!fromElement || !toElement) return false;
+        
+        const fromRect = fromElement.getBoundingClientRect();
+        const toRect = toElement.getBoundingClientRect();
+        
+        const fromX = fromRect.left + fromRect.width / 2;
+        const fromY = fromRect.top + fromRect.height / 2;
+        const toX = toRect.left + toRect.width / 2;
+        const toY = toRect.top + toRect.height / 2;
+        
+        // 检查切割路径是否与连接线相交
+        for (let i = 1; i < this.cutPath.length; i++) {
+            const cutStart = this.cutPath[i - 1];
+            const cutEnd = this.cutPath[i];
+            
+            if (this.linesIntersect(
+                cutStart.x, cutStart.y, cutEnd.x, cutEnd.y,
+                fromX, fromY, toX, toY
+            )) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    // 判断两条线段是否相交
+    linesIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+        const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+        if (denom === 0) return false;
+        
+        const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+        const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+        
+        return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+    }
+    
+    // 切断连接线
+    cutConnection(connection, index) {
+        // 添加切割动画效果
+        const line = document.querySelector(`[data-connection-id="${connection.id}"]`);
+        if (line) {
+            line.classList.add('cut');
+            
+            // 动画结束后删除连接线
+            setTimeout(() => {
+                line.remove();
+            }, 500);
+        }
+        
+        // 从数据中移除连接
+        this.connections.splice(index, 1);
+        
+        this.updateStatus(`已切断连接: ${connection.from} → ${connection.to}`);
+    }
+    
+    // 结束切割
+    endCutting() {
+        this.isCutting = false;
+        this.cutPath = [];
+        
+        // 移除切割线
+        if (this.cutLine) {
+            this.cutLine.remove();
+            this.cutLine = null;
+        }
+        
+        this.updateStatus('切割完成');
     }
 }
 
