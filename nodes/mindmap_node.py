@@ -48,6 +48,7 @@ class MindMapNode:
         self.is_expanded: bool = True
         self.is_visible: bool = True
         self.priority: int = 0  # 优先级，数字越大优先级越高
+        self.is_focused: bool = False  # 是否为当前讨论的焦点节点
         
         # 样式信息
         self.color: Optional[str] = None
@@ -270,6 +271,25 @@ class MindMapNode:
             self.icon = icon
         self.updated_at = datetime.now()
     
+    def set_focus(self, focused: bool = True) -> None:
+        """
+        设置节点焦点状态
+        
+        Args:
+            focused: 是否为焦点节点
+        """
+        self.is_focused = focused
+        self.updated_at = datetime.now()
+    
+    def is_focus_node(self) -> bool:
+        """
+        判断是否为焦点节点
+        
+        Returns:
+            是否为焦点节点
+        """
+        return self.is_focused
+    
     def to_dict(self) -> Dict[str, Any]:
         """
         将节点转换为字典格式
@@ -291,6 +311,7 @@ class MindMapNode:
             "is_expanded": self.is_expanded,
             "is_visible": self.is_visible,
             "priority": self.priority,
+            "is_focused": self.is_focused,
             "color": self.color,
             "icon": self.icon,
             "position": self.position
@@ -330,6 +351,7 @@ class MindMapNode:
         node.is_expanded = data.get("is_expanded", True)
         node.is_visible = data.get("is_visible", True)
         node.priority = data.get("priority", 0)
+        node.is_focused = data.get("is_focused", False)
         
         # 恢复样式
         node.color = data.get("color")

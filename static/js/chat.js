@@ -215,19 +215,72 @@ class ChatManager {
         const titleElement = document.getElementById('nodeTitle');
         const contentElement = document.getElementById('nodeContent');
         const typeElement = document.getElementById('nodeType');
+        const childrenContainer = document.getElementById('mindmapChildren');
+        const connectionsContainer = document.getElementById('mindmapConnections');
+        const nodeElement = document.getElementById('mindmapNode');
         
-        // 设置节点内容
+        // 设置主节点内容（简化显示）
         titleElement.textContent = nodeData.title;
         contentElement.textContent = nodeData.content;
         typeElement.textContent = nodeData.node_type;
+        
+        // 主节点不是焦点
+        nodeElement.classList.remove('focused');
         
         // 显示容器
         container.style.display = 'block';
         console.log('思维导图容器已显示');
         
+        // 创建子节点
+        if (nodeData.children && nodeData.children.length > 0) {
+            childrenContainer.innerHTML = ''; // 清空现有子节点
+            connectionsContainer.innerHTML = ''; // 清空现有连接线
+            
+            // 计算放射状布局的角度
+            const totalChildren = nodeData.children.length;
+            const angleStep = 360 / totalChildren;
+            const radius = 200; // 放射状半径
+            
+            nodeData.children.forEach((childData, index) => {
+                const childElement = document.createElement('div');
+                childElement.className = 'mindmap-child-node';
+                childElement.dataset.nodeId = childData.node_id;
+                childElement.dataset.index = index;
+                
+                // 设置焦点状态
+                if (childData.is_focused) {
+                    childElement.classList.add('focused');
+                    console.log(`子节点 ${childData.title} 设置为焦点状态`);
+                }
+                
+                childElement.innerHTML = `
+                    <div class="child-title">${childData.title}</div>
+                    <div class="child-content">${childData.content}</div>
+                `;
+                
+                // 添加点击事件（可选）
+                childElement.addEventListener('click', () => {
+                    console.log(`点击子节点: ${childData.title}`);
+                    // 这里可以添加子节点点击逻辑
+                });
+                
+                childrenContainer.appendChild(childElement);
+            });
+            
+            childrenContainer.style.display = 'flex';
+            
+            // 在下一帧应用放射状布局和绘制连接线
+            setTimeout(() => {
+                applyRadialLayout();
+                drawConnectionLines();
+            }, 100);
+        } else {
+            childrenContainer.style.display = 'none';
+            connectionsContainer.innerHTML = '';
+        }
+        
         // 添加思维导图节点关闭按钮事件
         const closeBtn = document.getElementById('nodeCloseBtn');
-        const nodeElement = document.getElementById('mindmapNode');
         
         // 移除之前的事件监听器（如果有的话）
         const oldHideNode = nodeElement._hideNodeFunction;
@@ -275,6 +328,105 @@ class ChatManager {
         // nodeElement._hideTimeout = setTimeout(hideNode, 300000);
     }
     
+    // 应用放射状布局
+    applyRadialLayout() {
+        const mainNode = document.getElementById('mindmapNode');
+        const childrenContainer = document.getElementById('mindmapChildren');
+        const childNodes = childrenContainer.querySelectorAll('.mindmap-child-node');
+        
+        if (!mainNode || childNodes.length === 0) {
+            return;
+        }
+        
+        const mainRect = mainNode.getBoundingClientRect();
+        const containerRect = childrenContainer.getBoundingClientRect();
+        
+        // 主节点中心点
+        const mainCenterX = mainRect.left + mainRect.width / 2;
+        const mainCenterY = mainRect.top + mainRect.height / 2;
+        
+        const totalChildren = childNodes.length;
+        const angleStep = 360 / totalChildren;
+        const radius = 250; // 放射状半径
+        
+        childNodes.forEach((childNode, index) => {
+            // 计算角度（从顶部开始，顺时针）
+            const angle = (index * angleStep - 90) * (Math.PI / 180);
+            
+            // 计算位置
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            
+            // 设置子节点位置
+            childNode.style.position = 'absolute';
+            childNode.style.left = `${x}px`;
+            childNode.style.top = `${y}px`;
+            childNode.style.transform = 'translate(-50%, -50%)';
+            
+            console.log(`子节点 ${index}: 角度=${angle * 180 / Math.PI}°, x=${x}, y=${y}`);
+        });
+        
+        // 调整容器样式以支持绝对定位
+        childrenContainer.style.position = 'relative';
+        childrenContainer.style.width = `${radius * 2 + 100}px`;
+        childrenContainer.style.height = `${radius * 2 + 100}px`;
+        childrenContainer.style.margin = '0 auto';
+    }
+    
+    // 绘制连接线
+    drawConnectionLines() {
+        const mainNode = document.getElementById('mindmapNode');
+        const childrenContainer = document.getElementById('mindmapChildren');
+        const connectionsContainer = document.getElementById('mindmapConnections');
+        const childNodes = childrenContainer.querySelectorAll('.mindmap-child-node');
+        
+        if (!mainNode || !childrenContainer || childNodes.length === 0) {
+            return;
+        }
+        
+        // 获取主节点位置
+        const mainRect = mainNode.getBoundingClientRect();
+        const containerRect = childrenContainer.getBoundingClientRect();
+        
+        // 主节点中心点
+        const mainCenterX = mainRect.left + mainRect.width / 2;
+        const mainCenterY = mainRect.top + mainRect.height / 2;
+        
+        childNodes.forEach((childNode, index) => {
+            const childRect = childNode.getBoundingClientRect();
+            
+            // 子节点中心点
+            const childCenterX = childRect.left + childRect.width / 2;
+            const childCenterY = childRect.top + childRect.height / 2;
+            
+            // 计算连接线
+            const startX = mainCenterX - containerRect.left;
+            const startY = mainCenterY - containerRect.top;
+            const endX = childCenterX - containerRect.left;
+            const endY = childCenterY - containerRect.top;
+            
+            // 创建连接线元素
+            const line = document.createElement('div');
+            line.className = 'connection-line';
+            
+            // 计算线的长度和角度
+            const deltaX = endX - startX;
+            const deltaY = endY - startY;
+            const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+            
+            // 设置线的样式
+            line.style.left = startX + 'px';
+            line.style.top = startY + 'px';
+            line.style.width = length + 'px';
+            line.style.transform = `rotate(${angle}deg)`;
+            
+            console.log(`连接线 ${index}: 长度=${length}px, 角度=${angle}°`);
+            
+            connectionsContainer.appendChild(line);
+        });
+    }
+    
     // 处理键盘事件
     handleKeyPress(event) {
         if (event.key === 'Enter') {
@@ -289,6 +441,7 @@ let chatManager;
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     chatManager = new ChatManager();
+    window.chatManager = chatManager; // 设置为全局变量，供思维导图系统使用
 });
 
 // 全局函数，保持与HTML的兼容性

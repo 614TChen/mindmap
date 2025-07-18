@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>思维导图测试</title>
+    <style>
+        body {
+            background: #fff;
+            margin: 0;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        .grid-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: linear-gradient(to right, #e0e0e0 1px, transparent 1px),
+                              linear-gradient(to bottom, #e0e0e0 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        
+        /* 思维导图样式 */
+        .mindmap-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow: auto;
+        }
+        
+        .mindmap-node {
+            background: #fff;
+            border: 2px solid #1976d2;
+            border-radius: 20px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            min-width: 200px;
+            max-width: 300px;
+            transition: all 0.3s ease;
+            animation: nodeAppear 0.5s ease-out;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        /* 思维导图连接线 */
+        .mindmap-connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .connection-line {
+            position: absolute;
+            background: #1976d2;
+            height: 3px;
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(25, 118, 210, 0.3);
+            transform-origin: left center;
+        }
+        
+        /* 子节点容器 - 放射状布局 */
+        .mindmap-children {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+            padding: 20px;
+            position: relative;
+            /* 放射状布局的基础 */
+            transform-style: preserve-3d;
+        }
+        
+        /* 为不同位置的子节点设置不同的角度 */
+        .mindmap-child-node {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 12px 16px;
+            text-align: center;
+            min-width: 160px;
+            max-width: 200px;
+            transition: all 0.3s ease;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* 子节点悬停效果 */
+        .mindmap-child-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        /* 焦点子节点样式 */
+        .mindmap-child-node.focused {
+            border: 3px solid #ff6b35;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+            background: linear-gradient(135deg, #fff 0%, #fff8f5 100%);
+        }
+        
+        .mindmap-child-node.focused::before {
+            content: "🎯";
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            background: #ff6b35;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(255, 107, 53, 0.4);
+        }
+        
+        .mindmap-child-node .child-title {
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .mindmap-child-node .child-content {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.3;
+        }
+        
+        .mindmap-child-node.focused .child-title {
+            color: #ff6b35;
+        }
+        
+        .mindmap-node .node-title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+        
+        .mindmap-node .node-content {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .mindmap-node .node-type {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+            text-transform: uppercase;
+        }
+        
+        .mindmap-node .node-close-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .mindmap-node .node-close-btn:hover {
+            background: #cc0000;
+        }
+        
+        @keyframes nodeAppear {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        /* 测试按钮 */
+        .test-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-controls button {
+            margin: 5px;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            background: #1976d2;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .test-controls button:hover {
+            background: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    
+    <!-- 测试控制按钮 -->
+    <div class="test-controls">
+        <h3>思维导图测试</h3>
+        <button onclick="showMindMap()">显示思维导图</button>
+        <button onclick="hideMindMap()">隐藏思维导图</button>
+        <button onclick="testRadialLayout()">测试放射状布局</button>
+    </div>
+    
+    <!-- 思维导图容器 -->
+    <div class="mindmap-container" id="mindmapContainer" style="display: none;">
+        <div class="mindmap-connections" id="mindmapConnections">
+            <!-- 连接线将在这里动态生成 -->
+        </div>
+        <div class="mindmap-node" id="mindmapNode">
+            <button class="node-close-btn" id="nodeCloseBtn">×</button>
+            <div class="node-title" id="nodeTitle"></div>
+            <div class="node-content" id="nodeContent"></div>
+            <div class="node-type" id="nodeType"></div>
+        </div>
+        <div class="mindmap-children" id="mindmapChildren">
+            <!-- 子节点将在这里动态生成 -->
+        </div>
+    </div>
+
+    <script>
+        // 模拟数据
+        const mockNodeData = {
+            "node_id": "main-001",
+            "title": "Rocket Building Project",
+            "content": "A comprehensive rocket building project with multiple phases",
+            "node_type": "idea",
+            "position": {"x": 0, "y": 0},
+            "is_focused": false,
+            "parent_node": null,
+            "suggested_next": "Design Phase",
+            "total_children": 5,
+            "focus_node_id": "child-001",
+            "focus_node_title": "Design Phase",
+            "children": [
+                {
+                    "node_id": "child-001",
+                    "title": "Design Phase",
+                    "content": "Plan the rocket design and specifications",
+                    "node_type": "subtask",
+                    "is_focused": true
+                },
+                {
+                    "node_id": "child-002",
+                    "title": "Materials",
+                    "content": "Select and source required materials",
+                    "node_type": "subtask",
+                    "is_focused": false
+                },
+                {
+                    "node_id": "child-003",
+                    "title": "Assembly",
+                    "content": "Build and assemble the rocket components",
+                    "node_type": "subtask",
+                    "is_focused": false
+                },
+                {
+                    "node_id": "child-004",
+                    "title": "Testing",
+                    "content": "Test the rocket systems and safety",
+                    "node_type": "subtask",
+                    "is_focused": false
+                },
+                {
+                    "node_id": "child-005",
+                    "title": "Launch",
+                    "content": "Prepare and execute the rocket launch",
+                    "node_type": "subtask",
+                    "is_focused": false
+                }
+            ]
+        };
+
+        // 显示思维导图
+        function showMindMap() {
+            const container = document.getElementById('mindmapContainer');
+            const titleElement = document.getElementById('nodeTitle');
+            const contentElement = document.getElementById('nodeContent');
+            const typeElement = document.getElementById('nodeType');
+            const childrenContainer = document.getElementById('mindmapChildren');
+            const connectionsContainer = document.getElementById('mindmapConnections');
+            const nodeElement = document.getElementById('mindmapNode');
+            
+            // 设置主节点内容
+            titleElement.textContent = mockNodeData.title;
+            contentElement.textContent = mockNodeData.content;
+            typeElement.textContent = mockNodeData.node_type;
+            
+            // 主节点不是焦点
+            nodeElement.classList.remove('focused');
+            
+            // 显示容器
+            container.style.display = 'block';
+            console.log('思维导图容器已显示');
+            
+            // 创建子节点
+            if (mockNodeData.children && mockNodeData.children.length > 0) {
+                childrenContainer.innerHTML = '';
+                connectionsContainer.innerHTML = '';
+                
+                mockNodeData.children.forEach((childData, index) => {
+                    const childElement = document.createElement('div');
+                    childElement.className = 'mindmap-child-node';
+                    childElement.dataset.nodeId = childData.node_id;
+                    childElement.dataset.index = index;
+                    
+                    // 设置焦点状态
+                    if (childData.is_focused) {
+                        childElement.classList.add('focused');
+                        console.log(`子节点 ${childData.title} 设置为焦点状态`);
+                    }
+                    
+                    childElement.innerHTML = `
+                        <div class="child-title">${childData.title}</div>
+                        <div class="child-content">${childData.content}</div>
+                    `;
+                    
+                    // 添加点击事件
+                    childElement.addEventListener('click', () => {
+                        console.log(`点击子节点: ${childData.title}`);
+                        alert(`点击了子节点: ${childData.title}`);
+                    });
+                    
+                    childrenContainer.appendChild(childElement);
+                });
+                
+                childrenContainer.style.display = 'flex';
+                
+                // 在下一帧应用放射状布局和绘制连接线
+                setTimeout(() => {
+                    applyRadialLayout();
+                    drawConnectionLines();
+                }, 100);
+            }
+            
+            // 添加关闭按钮事件
+            const closeBtn = document.getElementById('nodeCloseBtn');
+            closeBtn.onclick = hideMindMap;
+        }
+        
+        // 隐藏思维导图
+        function hideMindMap() {
+            const container = document.getElementById('mindmapContainer');
+            container.style.display = 'none';
+        }
+        
+        // 应用放射状布局
+        function applyRadialLayout() {
+            const mainNode = document.getElementById('mindmapNode');
+            const childrenContainer = document.getElementById('mindmapChildren');
+            const childNodes = childrenContainer.querySelectorAll('.mindmap-child-node');
+            
+            if (!mainNode || childNodes.length === 0) {
+                return;
+            }
+            
+            const mainRect = mainNode.getBoundingClientRect();
+            const containerRect = childrenContainer.getBoundingClientRect();
+            
+            // 主节点中心点
+            const mainCenterX = mainRect.left + mainRect.width / 2;
+            const mainCenterY = mainRect.top + mainRect.height / 2;
+            
+            const totalChildren = childNodes.length;
+            const angleStep = 360 / totalChildren;
+            const radius = 250; // 放射状半径
+            
+            childNodes.forEach((childNode, index) => {
+                // 计算角度（从顶部开始，顺时针）
+                const angle = (index * angleStep - 90) * (Math.PI / 180);
+                
+                // 计算位置
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                
+                // 设置子节点位置
+                childNode.style.position = 'absolute';
+                childNode.style.left = `${x}px`;
+                childNode.style.top = `${y}px`;
+                childNode.style.transform = 'translate(-50%, -50%)';
+                
+                console.log(`子节点 ${index}: 角度=${angle * 180 / Math.PI}°, x=${x}, y=${y}`);
+            });
+            
+            // 调整容器样式以支持绝对定位
+            childrenContainer.style.position = 'relative';
+            childrenContainer.style.width = `${radius * 2 + 100}px`;
+            childrenContainer.style.height = `${radius * 2 + 100}px`;
+            childrenContainer.style.margin = '0 auto';
+        }
+        
+        // 绘制连接线
+        function drawConnectionLines() {
+            const mainNode = document.getElementById('mindmapNode');
+            const childrenContainer = document.getElementById('mindmapChildren');
+            const connectionsContainer = document.getElementById('mindmapConnections');
+            const childNodes = childrenContainer.querySelectorAll('.mindmap-child-node');
+            
+            if (!mainNode || !childrenContainer || childNodes.length === 0) {
+                return;
+            }
+            
+            // 获取主节点位置
+            const mainRect = mainNode.getBoundingClientRect();
+            const containerRect = childrenContainer.getBoundingClientRect();
+            
+            // 主节点中心点
+            const mainCenterX = mainRect.left + mainRect.width / 2;
+            const mainCenterY = mainRect.top + mainRect.height / 2;
+            
+            childNodes.forEach((childNode, index) => {
+                const childRect = childNode.getBoundingClientRect();
+                
+                // 子节点中心点
+                const childCenterX = childRect.left + childRect.width / 2;
+                const childCenterY = childRect.top + childRect.height / 2;
+                
+                // 计算连接线
+                const startX = mainCenterX - containerRect.left;
+                const startY = mainCenterY - containerRect.top;
+                const endX = childCenterX - containerRect.left;
+                const endY = childCenterY - containerRect.top;
+                
+                // 创建连接线元素
+                const line = document.createElement('div');
+                line.className = 'connection-line';
+                
+                // 计算线的长度和角度
+                const deltaX = endX - startX;
+                const deltaY = endY - startY;
+                const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+                
+                // 设置线的样式
+                line.style.left = startX + 'px';
+                line.style.top = startY + 'px';
+                line.style.width = length + 'px';
+                line.style.transform = `rotate(${angle}deg)`;
+                
+                console.log(`连接线 ${index}: 长度=${length}px, 角度=${angle}°`);
+                
+                connectionsContainer.appendChild(line);
+            });
+        }
+        
+        // 测试放射状布局
+        function testRadialLayout() {
+            console.log('测试放射状布局...');
+            showMindMap();
+        }
+        
+        // 页面加载完成后自动显示思维导图
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成，可以点击按钮测试思维导图');
+        });
+    </script>
+</body>
+</html> 

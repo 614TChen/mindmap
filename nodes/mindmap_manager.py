@@ -20,6 +20,7 @@ class MindMapManager:
         self.mindmap_id = mindmap_id or f"mindmap_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.nodes: Dict[str, MindMapNode] = {}
         self.root_nodes: List[str] = []  # 根节点ID列表
+        self.focused_node_id: Optional[str] = None  # 当前焦点节点ID
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
         self.metadata: Dict[str, Any] = {}
@@ -273,6 +274,89 @@ class MindMapManager:
         
         return None
     
+    def set_focus_node(self, node_id: str) -> bool:
+        """
+        设置焦点节点
+        
+        Args:
+            node_id: 要设置为焦点的节点ID
+            
+        Returns:
+            是否设置成功
+        """
+        if node_id not in self.nodes:
+            return False
+        
+        # 清除之前的焦点节点
+        if self.focused_node_id and self.focused_node_id in self.nodes:
+            self.nodes[self.focused_node_id].set_focus(False)
+        
+        # 设置新的焦点节点
+        self.focused_node_id = node_id
+        self.nodes[node_id].set_focus(True)
+        self.updated_at = datetime.now()
+        return True
+    
+    def get_focus_node(self) -> Optional[MindMapNode]:
+        """
+        获取当前焦点节点
+        
+        Returns:
+            焦点节点对象，如果没有则返回None
+        """
+        if self.focused_node_id and self.focused_node_id in self.nodes:
+            return self.nodes[self.focused_node_id]
+        return None
+    
+    def clear_focus(self) -> bool:
+        """
+        清除焦点节点
+        
+        Returns:
+            是否清除成功
+        """
+        if self.focused_node_id and self.focused_node_id in self.nodes:
+            self.nodes[self.focused_node_id].set_focus(False)
+            self.focused_node_id = None
+            self.updated_at = datetime.now()
+            return True
+        return False
+    
+    def get_focus_node_id(self) -> Optional[str]:
+        """
+        获取当前焦点节点ID
+        
+        Returns:
+            焦点节点ID，如果没有则返回None
+        """
+        return self.focused_node_id
+    
+    def add_child_to_focus_node(self, child_node: MindMapNode) -> bool:
+        """
+        向焦点节点添加子节点
+        
+        Args:
+            child_node: 要添加的子节点
+            
+        Returns:
+            是否添加成功
+        """
+        if not self.focused_node_id:
+            return False
+        
+        focus_node = self.nodes.get(self.focused_node_id)
+        if not focus_node:
+            return False
+        
+        # 设置子节点的父节点为焦点节点
+        child_node.parent_id = self.focused_node_id
+        
+        # 添加子节点到管理器
+        if self.add_node(child_node):
+            return True
+        
+        return False
+    
     def export_to_dict(self) -> Dict[str, Any]:
         """
         导出思维导图为字典格式
@@ -286,6 +370,7 @@ class MindMapManager:
             "updated_at": self.updated_at.isoformat(),
             "metadata": self.metadata,
             "root_nodes": self.root_nodes,
+            "focused_node_id": self.focused_node_id,
             "nodes": {node_id: node.to_dict() for node_id, node in self.nodes.items()}
         }
     
@@ -313,6 +398,9 @@ class MindMapManager:
         
         # 恢复根节点列表
         manager.root_nodes = data.get("root_nodes", [])
+        
+        # 恢复焦点节点ID
+        manager.focused_node_id = data.get("focused_node_id")
         
         # 恢复所有节点
         nodes_data = data.get("nodes", {})
@@ -387,6 +475,8 @@ class MindMapManager:
             "leaf_nodes": leaf_nodes,
             "max_depth": max_depth,
             "type_counts": type_counts,
+            "focused_node_id": self.focused_node_id,
+            "has_focus_node": self.focused_node_id is not None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }

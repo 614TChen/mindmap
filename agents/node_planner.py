@@ -7,10 +7,15 @@ from pydantic import BaseModel, Field
 class ParentNodeInfo:
     description: str
 
+class NodeInfo(BaseModel):
+    name: str = Field(..., description="The name of the item")
+    description: str = Field(None, description="Optional description of the item")
+
+
 class SupportOutput(BaseModel):
     # node_description: str = Field(description='Name the node of the mindmap if a new idea is started.')
     buid_new_nodes: bool = Field(description='Does current mindmap node need to be split into new nodes?')
-    new_node_list: list[str] = Field(description='List the new nodes of the mindmap.')
+    new_node_list: list[NodeInfo] = Field(description='List the new nodes of the mindmap.')
 
 agent = Agent(
     model="deepseek:deepseek-chat",
