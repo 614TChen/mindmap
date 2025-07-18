@@ -1,7 +1,6 @@
 from typing import List, Dict
 import time
 
-# 简单的消息类，替代llama_index的ChatMessage
 class ChatMessage:
     def __init__(self, role: str, content: str):
         self.role = role

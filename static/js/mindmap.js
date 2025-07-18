@@ -111,6 +111,12 @@ class MindMapManager {
             </div>
         `;
         
+        // 设置焦点状态（如果节点有焦点状态信息）
+        if (node.is_focused) {
+            nodeElement.classList.add('focused');
+            console.log(`节点 ${node.title} 设置为焦点状态`);
+        }
+        
         // 绑定节点事件
         nodeElement.addEventListener('mousedown', (e) => this.handleNodeMouseDown(e, node));
         nodeElement.addEventListener('click', (e) => this.handleNodeClick(e, node));
@@ -652,6 +658,7 @@ let mindMapManager;
 
 document.addEventListener('DOMContentLoaded', () => {
     mindMapManager = new MindMapManager();
+    window.mindMapManager = mindMapManager; // 设置为全局变量，供聊天系统使用
 });
 
 // 思维导图系统已准备就绪

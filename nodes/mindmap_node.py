@@ -142,6 +142,8 @@ class MindMapNode:
         Returns:
             父节点对象，如果没有则返回None
         """
+        if self.parent_id is None:
+            return None
         return node_map.get(self.parent_id)
     
     def get_ancestors(self, node_map: Dict[str, 'MindMapNode']) -> List['MindMapNode']:

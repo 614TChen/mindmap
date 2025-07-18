@@ -113,79 +113,30 @@ async def stream_starter_agent_response(user_message: str, session_id: str) -> A
         # 添加助手回复到历史
         message_manager.add_message(session_id, "assistant", response_text)
         
-        # 如果启动思维导图，创建节点并发送节点信息
+        # 如果启动思维导图，发送节点创建指令给前端
         if result.start_mindmap:
-            # 创建主思维导图节点
-            main_node = MindMapNode(
-                title=result.node_description,
-                content=result.idea_description,
-                node_type="idea",
-                metadata={
-                    "session_id": session_id,
-                    "created_from_chat": True,
-                    "user_message": user_message
-                }
-            )
-            
-            # 添加到思维导图管理器
-            mindmap_manager.add_node(main_node)
-            
-            # 创建子节点列表
-            child_nodes = []
-            suggested_focus_node = None
-            
-            if result.new_node_list:
-                for node_info in result.new_node_list:
-                    child_node = MindMapNode(
-                        title=node_info.name,
-                        content=node_info.description or "",
-                        node_type="subtask",
-                        parent_id=main_node.node_id,
-                        metadata={
-                            "session_id": session_id,
-                            "created_from_chat": True,
-                            "parent_node": main_node.node_id
-                        }
-                    )
-                    
-                    # 添加到管理器
-                    mindmap_manager.add_node(child_node)
-                    child_nodes.append(child_node)
-                    
-                    # 检查是否为建议讨论的节点
-                    if node_info.name == result.dicuss_next:
-                        suggested_focus_node = child_node
-            
-            # 设置焦点节点（建议讨论的子节点）
-            if suggested_focus_node:
-                mindmap_manager.set_focus_node(suggested_focus_node.node_id)
-            
-            # 发送主节点信息（显示主节点，但焦点是建议的子节点）
-            node_data = {
-                "node_id": main_node.node_id,
-                "title": main_node.title,
-                "content": main_node.content,
-                "node_type": main_node.node_type,
-                "position": main_node.position,
-                "is_focused": False,  # 主节点不是焦点
-                "parent_node": None,
-                "suggested_next": result.dicuss_next,
-                "total_children": len(child_nodes),
-                "focus_node_id": suggested_focus_node.node_id if suggested_focus_node else None,
-                "focus_node_title": suggested_focus_node.title if suggested_focus_node else None,
-                "children": [
-                    {
-                        "node_id": child.node_id,
-                        "title": child.title,
-                        "content": child.content,
-                        "node_type": child.node_type,
-                        "is_focused": child.node_id == (suggested_focus_node.node_id if suggested_focus_node else None)
-                    }
-                    for child in child_nodes
-                ]
+            # 构建节点创建指令
+            mindmap_instruction = {
+                "type": "create_mindmap_nodes",
+                "main_node": {
+                    "title": result.node_description,
+                    "content": result.idea_description,
+                    "node_type": "idea"
+                },
+                "child_nodes": [],
+                "suggested_focus": result.dicuss_next
             }
             
-            yield f"data: {json.dumps({'type': 'mindmap_node', 'node': node_data})}\n\n"
+            # 添加子节点信息
+            if result.new_node_list:
+                for node_info in result.new_node_list:
+                    mindmap_instruction["child_nodes"].append({
+                        "title": node_info.name,
+                        "content": node_info.description or "",
+                        "node_type": "subtask"
+                    })
+            
+            yield f"data: {json.dumps(mindmap_instruction)}\n\n"
         
         # 发送完成信号
         yield f"data: {json.dumps({'content': '', 'type': 'end'})}\n\n"

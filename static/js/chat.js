@@ -120,17 +120,20 @@ class ChatManager {
                     if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.slice(6));
-                                                            if (data.type === 'chunk') {
-                                    botMessageDiv.textContent += data.content;
-                                } else if (data.type === 'mindmap_node') {
-                                    // 显示思维导图节点
-                                    this.showMindMapNode(data.node);
-                                } else if (data.type === 'end') {
-                                    // 对话完成，更新轮数
-                                    this.conversationRounds++;
-                                } else if (data.type === 'error') {
-                                    botMessageDiv.textContent = '抱歉，处理您的请求时出现了错误。';
-                                }
+                            if (data.type === 'chunk') {
+                                botMessageDiv.textContent += data.content;
+                            } else if (data.type === 'mindmap_node') {
+                                // 显示思维导图节点
+                                this.showMindMapNode(data.node);
+                            } else if (data.type === 'create_mindmap_nodes') {
+                                // 创建思维导图节点
+                                this.createMindMapNodes(data);
+                            } else if (data.type === 'end') {
+                                // 对话完成，更新轮数
+                                this.conversationRounds++;
+                            } else if (data.type === 'error') {
+                                botMessageDiv.textContent = '抱歉，处理您的请求时出现了错误。';
+                            }
                         } catch (e) {
                             console.error('解析响应数据失败:', e);
                         }
@@ -207,6 +210,79 @@ class ChatManager {
         }
     }
 
+    // 创建思维导图节点
+    createMindMapNodes(data) {
+        console.log('创建思维导图节点:', data);
+        
+        // 检查思维导图管理器是否存在
+        if (!window.mindMapManager) {
+            console.error('思维导图管理器未初始化');
+            return;
+        }
+        
+        // 创建主节点
+        const mainNodeData = data.main_node;
+        const mainNodeId = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const mainNode = {
+            id: mainNodeId,
+            title: mainNodeData.title,
+            content: mainNodeData.content,
+            x: window.innerWidth / 2 - 150, // 居中放置
+            y: window.innerHeight / 2 - 100
+        };
+        
+        // 使用思维导图管理器创建主节点
+        window.mindMapManager.nodes.set(mainNodeId, mainNode);
+        window.mindMapManager.createNodeElement(mainNode);
+        
+        // 创建子节点
+        const childNodes = [];
+        const radius = 250; // 子节点分布半径
+        const totalChildren = data.child_nodes.length;
+        const angleStep = totalChildren > 0 ? 360 / totalChildren : 0;
+        
+        data.child_nodes.forEach((childData, index) => {
+            const childNodeId = 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            // 计算子节点位置（放射状布局）
+            const angle = (index * angleStep - 90) * (Math.PI / 180);
+            const childX = mainNode.x + Math.cos(angle) * radius;
+            const childY = mainNode.y + Math.sin(angle) * radius;
+            
+            const childNode = {
+                id: childNodeId,
+                title: childData.title,
+                content: childData.content,
+                x: childX,
+                y: childY,
+                is_focused: childData.title === data.suggested_focus
+            };
+            
+            // 创建子节点
+            window.mindMapManager.nodes.set(childNodeId, childNode);
+            window.mindMapManager.createNodeElement(childNode);
+            childNodes.push(childNode);
+            
+            // 创建主节点到子节点的连接
+            const connection = {
+                id: 'conn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                from: mainNodeId,
+                to: childNodeId
+            };
+            
+            window.mindMapManager.connections.push(connection);
+            window.mindMapManager.drawConnection(connection);
+        });
+        
+        // 焦点状态已在创建节点时设置
+        console.log(`已创建思维导图: ${mainNodeData.title} (${childNodes.length} 个子节点)`);
+        if (data.suggested_focus) {
+            console.log(`建议讨论的下一个节点: ${data.suggested_focus}`);
+        }
+        
+        console.log(`已创建思维导图: ${mainNodeData.title} (${childNodes.length} 个子节点)`);
+    }
+    
     // 显示思维导图节点
     showMindMapNode(nodeData) {
         console.log('显示思维导图节点:', nodeData);
@@ -224,8 +300,13 @@ class ChatManager {
         contentElement.textContent = nodeData.content;
         typeElement.textContent = nodeData.node_type;
         
-        // 主节点不是焦点
-        nodeElement.classList.remove('focused');
+        // 设置主节点焦点状态
+        if (nodeData.is_focused) {
+            nodeElement.classList.add('focused');
+            console.log(`主节点 ${nodeData.title} 设置为焦点状态`);
+        } else {
+            nodeElement.classList.remove('focused');
+        }
         
         // 显示容器
         container.style.display = 'block';

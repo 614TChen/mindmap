@@ -318,8 +318,13 @@
             contentElement.textContent = mockNodeData.content;
             typeElement.textContent = mockNodeData.node_type;
             
-            // 主节点不是焦点
-            nodeElement.classList.remove('focused');
+            // 设置主节点焦点状态
+            if (mockNodeData.is_focused) {
+                nodeElement.classList.add('focused');
+                console.log(`主节点 ${mockNodeData.title} 设置为焦点状态`);
+            } else {
+                nodeElement.classList.remove('focused');
+            }
             
             // 显示容器
             container.style.display = 'block';

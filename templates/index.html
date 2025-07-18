@@ -163,8 +163,34 @@
         }
         
         .mindmap-node.selected {
-            border: 3px solid #ff6b35;
-            box-shadow: 0 6px 25px rgba(255, 107, 53, 0.3);
+            border: 3px solid #2196f3;
+            box-shadow: 0 6px 25px rgba(33, 150, 243, 0.3);
+        }
+        
+        /* 焦点节点样式 - 优先级高于选中状态 */
+        .mindmap-node.focused {
+            border: 3px solid #ff6b35 !important;
+            box-shadow: 0 6px 25px rgba(255, 107, 53, 0.3) !important;
+            background: linear-gradient(135deg, #fff 0%, #fff8f5 100%);
+        }
+        
+        .mindmap-node.focused::before {
+            content: "🎯";
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            background: #ff6b35;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(255, 107, 53, 0.4);
+            z-index: 101;
         }
         
         .mindmap-node.dragging {
